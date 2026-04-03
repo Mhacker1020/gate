@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gate"
+version = "0.1.0"
+description = "Supply chain security scanner for npm and pip packages"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+gate = "gate.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gate"]
