@@ -8,6 +8,7 @@ from gate.config import load_config, Config
 from gate.registry import pypi, npm
 from gate.checks.quarantine import check_quarantine
 from gate.checks.cve import check_cve
+from gate.checks.scripts import check_install_scripts
 from gate.hooks.precommit import install_hook, uninstall_hook
 import gate.output as out
 
@@ -42,12 +43,22 @@ def _check_package(name: str, version: str | None, ecosystem: str, config: Confi
 
     # Install scripts (npm)
     if ecosystem == "npm":
-        for script_name, cmd in info.get("install_scripts", {}).items():
-            msg = f"install script [{script_name}]: {cmd[:60]}"
-            if "install_script" in config.fail_on:
-                result["errors"].append(msg)
-            else:
-                result["warnings"].append(msg)
+        script_result = check_install_scripts(info.get("install_scripts", {}))
+        if not script_result["ok"]:
+            for script_name, patterns in script_result["findings"].items():
+                cmd = script_result["raw"][script_name]
+                msg = f"install script [{script_name}]: {cmd[:60]}"
+                detail = f"  suspicious: {', '.join(patterns)}"
+                if "install_script" in config.fail_on:
+                    result["errors"].append(msg)
+                    result["errors"].append(detail)
+                else:
+                    result["warnings"].append(msg)
+                    result["warnings"].append(detail)
+        elif info.get("install_scripts"):
+            # Has install scripts but no suspicious patterns — still worth noting
+            for script_name, cmd in info["install_scripts"].items():
+                result["warnings"].append(f"install script [{script_name}]: {cmd[:60]}")
 
     return result
 

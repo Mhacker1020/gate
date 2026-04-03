@@ -2,7 +2,7 @@
 
 Supply chain security scanner for npm and pip packages.
 
-Checks packages for known CVEs, quarantines newly published versions, and warns about install scripts — before they hit your project.
+Checks packages for known CVEs, quarantines newly published versions, and warns about suspicious install scripts — before they hit your project.
 
 ```
   ✓ flask 3.1.1
@@ -17,12 +17,19 @@ Checks packages for known CVEs, quarantines newly published versions, and warns 
 Supply chain attacks increasingly target the window between a package being published and being detected as malicious. Existing tools (Trivy, Snyk, Dependabot) catch *known* CVEs but miss:
 
 - Newly published malicious versions not yet in any database
-- Maintainer takeovers
 - Install scripts that run arbitrary code on `pip install`
 
 Gate adds a quarantine window — new versions are flagged until the community has had time to catch problems.
 
 **Zero runtime dependencies.** A supply chain security tool that trusts its own supply chain is not a security tool.
+
+## Checks
+
+| Check | What it catches |
+|-------|----------------|
+| CVE scan | Known vulnerabilities via OSV.dev |
+| Quarantine window | Versions published within N days |
+| Install scripts | npm packages running suspicious install hooks |
 
 ## Installation
 
@@ -92,14 +99,6 @@ Move `recent_release` from `warn_on` to `fail_on` to enforce the quarantine wind
 | npm | `package-lock.json` | registry.npmjs.org |
 
 CVE data is sourced from [OSV.dev](https://osv.dev) — Google's open vulnerability database.
-
-## Checks
-
-| Check | What it catches |
-|-------|----------------|
-| CVE scan | Known vulnerabilities via OSV.dev |
-| Quarantine window | Versions published within N days |
-| Install scripts | npm packages with `postinstall`/`preinstall` hooks |
 
 ## Contributing
 
