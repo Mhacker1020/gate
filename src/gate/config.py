@@ -7,7 +7,7 @@ import tomllib
 class Config:
     quarantine_days: int = 7
     fail_on: list[str] = field(default_factory=lambda: ["critical_cve", "install_script"])
-    warn_on: list[str] = field(default_factory=lambda: ["recent_release"])
+    warn_on: list[str] = field(default_factory=lambda: ["recent_release", "maintainer_change"])
 
 
 def load_config(path: Path | None = None) -> Config:

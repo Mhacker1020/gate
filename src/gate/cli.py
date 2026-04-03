@@ -9,6 +9,7 @@ from gate.registry import pypi, npm
 from gate.checks.quarantine import check_quarantine
 from gate.checks.cve import check_cve
 from gate.checks.scripts import check_install_scripts
+from gate.checks.maintainer import check_maintainer_change
 from gate.hooks.precommit import install_hook, uninstall_hook
 import gate.output as out
 
@@ -40,6 +41,17 @@ def _check_package(name: str, version: str | None, ecosystem: str, config: Confi
     # CVE
     for v in check_cve(name, info["version"], ecosystem):
         result["errors"].append(f"{v['id']}: {v['summary'][:72]}")
+
+    # Maintainer change
+    current_m = info.get("maintainers") or []
+    previous_m = info.get("previous_maintainers")
+    if previous_m is not None:
+        m = check_maintainer_change(current_m, previous_m)
+        if not m["ok"]:
+            if "maintainer_change" in config.fail_on:
+                result["errors"].append(f"maintainer change: {m['message']}")
+            else:
+                result["warnings"].append(f"maintainer change: {m['message']}")
 
     # Install scripts (npm)
     if ecosystem == "npm":

@@ -33,9 +33,49 @@ def get_package_info(name: str, version: str | None = None) -> dict | None:
         if k in ("install", "preinstall", "postinstall", "preuninstall", "postuninstall")
     }
 
+    current_maintainers = _extract_maintainers(version_data.get("maintainers", []))
+    previous_maintainers = _get_previous_maintainers(data, version)
+
     return {
         "name": data["name"],
         "version": version,
         "published": published,
         "install_scripts": install_scripts,
+        "maintainers": current_maintainers,
+        "previous_maintainers": previous_maintainers,
     }
+
+
+def _extract_maintainers(maintainers: list) -> list[str]:
+    return [
+        m["name"] if isinstance(m, dict) else str(m)
+        for m in maintainers
+    ]
+
+
+def _get_previous_maintainers(data: dict, current_version: str) -> list[str] | None:
+    """Return maintainer list from the version published just before current_version."""
+    times: dict[str, str] = data.get("time", {})
+    versions_with_time = {
+        v: t for v, t in times.items()
+        if v not in ("created", "modified") and v in data.get("versions", {})
+    }
+
+    if not versions_with_time:
+        return None
+
+    current_time = versions_with_time.get(current_version)
+    if not current_time:
+        return None
+
+    earlier = [
+        v for v, t in versions_with_time.items()
+        if t < current_time and v != current_version
+    ]
+
+    if not earlier:
+        return None
+
+    prev_version = max(earlier, key=lambda v: versions_with_time[v])
+    prev_data = data["versions"].get(prev_version, {})
+    return _extract_maintainers(prev_data.get("maintainers", []))
