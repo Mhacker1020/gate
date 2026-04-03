@@ -106,7 +106,7 @@ CVE data is sourced from [OSV.dev](https://osv.dev) — Google's open vulnerabil
 Gate is open source and built for the community. Contributions welcome.
 
 ```bash
-git clone https://github.com/mikavihreala/gate
+git clone https://github.com/Mhacker1020/gate
 cd gate
 pip install -e ".[dev]"
 python -m pytest
