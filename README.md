@@ -32,6 +32,7 @@ Gate adds a quarantine window — new versions are flagged until the community h
 | Install scripts | npm packages running suspicious install hooks |
 | Hash verification | Detects tampered packages via lock file integrity checks |
 | Maintainer change | Flags when a package owner has changed between versions |
+| SBOM export | Generates a CycloneDX 1.6 Software Bill of Materials |
 
 ## Installation
 
@@ -61,6 +62,13 @@ gate scan
 ```
 
 Exit code is non-zero if errors are found — suitable for CI pipelines.
+
+### Export a CycloneDX SBOM
+
+```bash
+gate scan --sbom                  # print to stdout
+gate scan --sbom report.cdx.json  # write to file
+```
 
 ### Install as a git pre-commit hook
 

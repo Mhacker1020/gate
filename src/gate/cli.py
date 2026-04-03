@@ -12,6 +12,7 @@ from gate.checks.scripts import check_install_scripts
 from gate.checks.maintainer import check_maintainer_change
 from gate.checks.integrity import check_integrity, parse_requirements_hashes
 from gate.hooks.precommit import install_hook, uninstall_hook
+from gate import sbom as sbom_mod
 import gate.output as out
 
 
@@ -203,23 +204,39 @@ def cmd_scan(args: argparse.Namespace) -> None:
 
     errors = 0
     warnings = 0
+    sbom_entries: list[dict] = []
 
     for name, version, local_integrity in packages:
         result = _check_package(name, version, ecosystem, config, local_integrity)
         _print_result(name, result)
         errors += len(result["errors"])
         warnings += len(result["warnings"])
+        if args.sbom is not None:
+            sbom_entries.append({"name": name, **result})
 
     print()
     if errors:
         print(out.red(f"✗ {errors} error(s)") + f", {warnings} warning(s)")
         print(out.dim("Use --force to override and proceed anyway"))
         if not args.force:
+            if args.sbom is not None:
+                _write_sbom(sbom_entries, ecosystem, args.sbom)
             sys.exit(1)
     elif warnings:
         print(out.green("✓ 0 errors") + f", {out.yellow(f'{warnings} warning(s)')}")
     else:
         print(out.green(f"✓ All {len(packages)} packages passed"))
+
+    if args.sbom is not None:
+        _write_sbom(sbom_entries, ecosystem, args.sbom)
+
+
+def _write_sbom(entries: list[dict], ecosystem: str, path: str) -> None:
+    doc = sbom_mod.generate(entries, ecosystem)
+    output_path = path if path else None
+    sbom_mod.write(doc, output_path)
+    if output_path:
+        print(out.dim(f"SBOM written to {output_path}"))
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
@@ -243,6 +260,13 @@ def main() -> None:
     p_scan = sub.add_parser("scan", help="Scan all packages in lock file")
     p_scan.add_argument("--force", action="store_true", help="Exit 0 even on errors")
     p_scan.add_argument("--hook", action="store_true", help=argparse.SUPPRESS)
+    p_scan.add_argument(
+        "--sbom",
+        nargs="?",
+        const="",
+        metavar="FILE",
+        help="Export CycloneDX SBOM (optional: path to output file, default: stdout)",
+    )
 
     args = parser.parse_args()
 
