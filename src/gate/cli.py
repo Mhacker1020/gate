@@ -10,13 +10,20 @@ from gate.checks.quarantine import check_quarantine
 from gate.checks.cve import check_cve
 from gate.checks.scripts import check_install_scripts
 from gate.checks.maintainer import check_maintainer_change
+from gate.checks.integrity import check_integrity, parse_requirements_hashes
 from gate.hooks.precommit import install_hook, uninstall_hook
 import gate.output as out
 
 
 # ── Result helpers ────────────────────────────────────────────────────────────
 
-def _check_package(name: str, version: str | None, ecosystem: str, config: Config) -> dict:
+def _check_package(
+    name: str,
+    version: str | None,
+    ecosystem: str,
+    config: Config,
+    local_integrity: str | None = None,
+) -> dict:
     result: dict = {"errors": [], "warnings": [], "version": None}
 
     if ecosystem == "PyPI":
@@ -52,6 +59,15 @@ def _check_package(name: str, version: str | None, ecosystem: str, config: Confi
                 result["errors"].append(f"maintainer change: {m['message']}")
             else:
                 result["warnings"].append(f"maintainer change: {m['message']}")
+
+    # Integrity / hash verification
+    remote_integrity = info.get("remote_integrity")
+    if local_integrity and remote_integrity:
+        integ = check_integrity(local_integrity, remote_integrity)
+        if not integ["ok"] and not integ.get("skipped"):
+            result["errors"].append(integ["message"])
+            result["errors"].append(f"  local:  {local_integrity}")
+            result["errors"].append(f"  remote: {remote_integrity}")
 
     # Install scripts (npm)
     if ecosystem == "npm":
@@ -110,20 +126,26 @@ def _parse_requirements(path: Path) -> list[tuple[str, str | None]]:
     return packages
 
 
-def _parse_package_lock(path: Path) -> list[tuple[str, str | None]]:
+def _parse_package_lock(path: Path) -> list[tuple[str, str | None, str | None]]:
     data = json.loads(path.read_text(encoding="utf-8"))
     packages = []
     for pkg_path, pkg_data in data.get("packages", {}).items():
         if not pkg_path:
             continue
         name = pkg_path.removeprefix("node_modules/")
-        packages.append((name, pkg_data.get("version")))
+        packages.append((name, pkg_data.get("version"), pkg_data.get("integrity")))
     return packages
 
 
-def _detect_project() -> tuple[list[tuple[str, str | None]], str] | None:
+def _detect_project() -> tuple[list[tuple[str, str | None, str | None]], str] | None:
     if Path("requirements.txt").exists():
-        return _parse_requirements(Path("requirements.txt")), "PyPI"
+        req_path = Path("requirements.txt")
+        hashes = parse_requirements_hashes(req_path)
+        packages = []
+        for name, version in _parse_requirements(req_path):
+            local_hash = hashes.get(name.lower(), {}).get(version) if version else None
+            packages.append((name, version, local_hash))
+        return packages, "PyPI"
     if Path("package-lock.json").exists():
         return _parse_package_lock(Path("package-lock.json")), "npm"
     return None
@@ -182,8 +204,8 @@ def cmd_scan(args: argparse.Namespace) -> None:
     errors = 0
     warnings = 0
 
-    for name, version in packages:
-        result = _check_package(name, version, ecosystem, config)
+    for name, version, local_integrity in packages:
+        result = _check_package(name, version, ecosystem, config, local_integrity)
         _print_result(name, result)
         errors += len(result["errors"])
         warnings += len(result["warnings"])

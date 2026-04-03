@@ -30,6 +30,8 @@ Gate adds a quarantine window — new versions are flagged until the community h
 | CVE scan | Known vulnerabilities via OSV.dev |
 | Quarantine window | Versions published within N days |
 | Install scripts | npm packages running suspicious install hooks |
+| Hash verification | Detects tampered packages via lock file integrity checks |
+| Maintainer change | Flags when a package owner has changed between versions |
 
 ## Installation
 

@@ -31,6 +31,14 @@ def get_package_info(name: str, version: str | None = None) -> dict | None:
     # PyPI exposes the uploader username per file
     uploaders = list({f["uploader"] for f in files if f.get("uploader")})
 
+    # Prefer the source distribution hash, fall back to first wheel
+    remote_integrity = None
+    sdist = next((f for f in files if f.get("packagetype") == "sdist"), None)
+    ref = sdist or files[0]
+    sha256 = ref.get("digests", {}).get("sha256")
+    if sha256:
+        remote_integrity = f"sha256:{sha256}"
+
     previous_uploaders = _get_previous_uploaders(releases, version)
 
     return {
@@ -40,6 +48,7 @@ def get_package_info(name: str, version: str | None = None) -> dict | None:
         "home_page": data["info"].get("home_page"),
         "maintainers": uploaders,
         "previous_maintainers": previous_uploaders,
+        "remote_integrity": remote_integrity,
     }
 
 

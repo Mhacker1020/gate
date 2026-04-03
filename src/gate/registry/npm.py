@@ -36,6 +36,9 @@ def get_package_info(name: str, version: str | None = None) -> dict | None:
     current_maintainers = _extract_maintainers(version_data.get("maintainers", []))
     previous_maintainers = _get_previous_maintainers(data, version)
 
+    # dist.integrity is the canonical hash from the registry
+    remote_integrity = version_data.get("dist", {}).get("integrity")
+
     return {
         "name": data["name"],
         "version": version,
@@ -43,6 +46,7 @@ def get_package_info(name: str, version: str | None = None) -> dict | None:
         "install_scripts": install_scripts,
         "maintainers": current_maintainers,
         "previous_maintainers": previous_maintainers,
+        "remote_integrity": remote_integrity,
     }
 
 
