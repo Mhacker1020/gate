@@ -1,7 +1,7 @@
 import json
 import urllib.request
 import urllib.error
-from datetime import datetime, timezone
+from datetime import datetime
 
 
 def get_package_info(name: str, version: str | None = None) -> dict | None:

@@ -27,7 +27,7 @@ Repository = "https://github.com/Mhacker1020/gate"
 Issues = "https://github.com/Mhacker1020/gate/issues"
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "pytest-cov", "ruff", "mypy"]
 
 [project.scripts]
 gate = "gate.cli:main"
