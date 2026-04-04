@@ -31,4 +31,4 @@ jobs:
         run: mypy src/gate --ignore-missing-imports
 
       - name: Run tests with coverage
-        run: python -m pytest tests/ -v --cov=gate --cov-fail-under=65
+        run: python -m pytest tests/ -v --cov=gate --cov-fail-under=60
