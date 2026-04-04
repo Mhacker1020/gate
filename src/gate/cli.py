@@ -1,6 +1,7 @@
 import argparse
 import json
 import sys
+import tomllib
 from pathlib import Path
 
 from gate import __version__
@@ -138,7 +139,41 @@ def _parse_package_lock(path: Path) -> list[tuple[str, str | None, str | None]]:
     return packages
 
 
+def _parse_poetry_lock(path: Path) -> list[tuple[str, str | None, str | None]]:
+    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    packages = []
+    for pkg in data.get("package", []):
+        name = pkg.get("name", "")
+        version = pkg.get("version")
+        # Extract first sha256 hash from files metadata if present
+        local_hash = None
+        for f in pkg.get("files", []):
+            h = f.get("hash", "")
+            if h.startswith("sha256:"):
+                local_hash = h
+                break
+        packages.append((name, version, local_hash))
+    return packages
+
+
+def _parse_pipfile_lock(path: Path) -> list[tuple[str, str | None, str | None]]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    packages = []
+    for section in ("default", "develop"):
+        for name, meta in data.get(section, {}).items():
+            version_str = meta.get("version", "")
+            version = version_str.lstrip("=") if version_str.startswith("==") else None
+            hashes = meta.get("hashes", [])
+            local_hash = next((h for h in hashes if h.startswith("sha256:")), None)
+            packages.append((name, version, local_hash))
+    return packages
+
+
 def _detect_project() -> tuple[list[tuple[str, str | None, str | None]], str] | None:
+    if Path("poetry.lock").exists():
+        return _parse_poetry_lock(Path("poetry.lock")), "PyPI"
+    if Path("Pipfile.lock").exists():
+        return _parse_pipfile_lock(Path("Pipfile.lock")), "PyPI"
     if Path("requirements.txt").exists():
         req_path = Path("requirements.txt")
         hashes = parse_requirements_hashes(req_path)
