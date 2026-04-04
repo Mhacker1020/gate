@@ -1,38 +1,55 @@
 # gate
 
-Supply chain security scanner for npm and pip packages.
+> A supply chain security tool that trusts its own supply chain is not a security tool.
 
-Checks packages for known CVEs, quarantines newly published versions, and warns about suspicious install scripts — before they hit your project.
+Gate scans npm and pip packages **before** they enter your project — catching threats that traditional vulnerability scanners miss.
 
 ```
-  ✓ flask 3.1.1
-  ✗ requests 2.28.0
-    CVE-2023-32681: Unintended leak of Proxy-Authorization header
-  ⚠ urllib3 2.3.0
-    Published 2 day(s) ago (quarantine window: 7 days)
+$ gate check requests
+
+  ⚠ requests 2.33.0
+    Published 3 day(s) ago (quarantine window: 7 days)
+
+$ gate check event-stream --npm
+
+  ✗ event-stream 3.3.6
+    install script [postinstall]: node -e "..."
+      suspicious: eval execution, hardcoded URL
 ```
 
-## Why
+[![CI](https://github.com/Mhacker1020/gate/actions/workflows/ci.yml/badge.svg)](https://github.com/Mhacker1020/gate/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/gate-cli)](https://pypi.org/project/gate-cli/)
+![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)
+![Zero dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen)
 
-Supply chain attacks increasingly target the window between a package being published and being detected as malicious. Existing tools (Trivy, Snyk, Dependabot) catch *known* CVEs but miss:
+## The problem
 
-- Newly published malicious versions not yet in any database
-- Install scripts that run arbitrary code on `pip install`
+Most supply chain attacks don't exploit known CVEs. They work in the gap between a malicious package being published and being detected — a window that can last hours or days.
 
-Gate adds a quarantine window — new versions are flagged until the community has had time to catch problems.
+During that window:
 
-**Zero runtime dependencies.** A supply chain security tool that trusts its own supply chain is not a security tool.
+- A typosquatted package runs arbitrary code on `pip install`
+- A compromised maintainer account pushes a backdoored version
+- An install script exfiltrates environment variables or SSH keys
 
-## Checks
+Tools like Trivy, Snyk, and Dependabot catch *known* vulnerabilities. Gate catches what they miss.
+
+## How it works
+
+Gate runs six checks on every package:
 
 | Check | What it catches |
 |-------|----------------|
-| CVE scan | Known vulnerabilities via OSV.dev |
-| Quarantine window | Versions published within N days |
-| Install scripts | npm packages running suspicious install hooks |
-| Hash verification | Detects tampered packages via lock file integrity checks |
-| Maintainer change | Flags when a package owner has changed between versions |
-| SBOM export | Generates a CycloneDX 1.6 Software Bill of Materials |
+| **CVE scan** | Known vulnerabilities via [OSV.dev](https://osv.dev) |
+| **Quarantine window** | Versions published within N days — too new to be trusted |
+| **Install script inspection** | npm packages running suspicious hooks (`curl`, `eval`, `base64`, hardcoded IPs...) |
+| **Maintainer change** | Flags when package ownership has changed between versions |
+| **Hash verification** | Detects tampered packages via lock file integrity checks |
+| **SBOM export** | Generates a CycloneDX 1.6 Software Bill of Materials |
+
+The quarantine window is the key insight: a package published 2 hours ago has not been reviewed by the community, scanned by security researchers, or flagged by automated systems. Gate makes that visible.
+
+**Zero runtime dependencies.** Gate is implemented using Python's standard library only — no third-party packages that could themselves be compromised.
 
 ## Installation
 
@@ -55,11 +72,13 @@ gate check lodash==4.17.15 --npm
 
 ### Scan all packages in a project
 
-Automatically detects `requirements.txt` or `package-lock.json`:
+Gate automatically detects your lock file:
 
 ```bash
 gate scan
 ```
+
+Supported lock files: `poetry.lock`, `Pipfile.lock`, `requirements.txt`, `package-lock.json`
 
 Exit code is non-zero if errors are found — suitable for CI pipelines.
 
@@ -84,35 +103,33 @@ gate uninstall
 
 ## Configuration
 
-Create `.gate.toml` in your project root to override defaults:
+Create `.gate.toml` in your project root:
 
 ```toml
 quarantine_days = 14
 
 fail_on = ["critical_cve", "install_script"]
-warn_on = ["recent_release"]
+warn_on = ["recent_release", "maintainer_change"]
 ```
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `quarantine_days` | `7` | Days a new release must age before passing |
-| `fail_on` | `["critical_cve", "install_script"]` | Conditions that block the commit / exit 1 |
-| `warn_on` | `["recent_release"]` | Conditions that warn but allow through |
+| `fail_on` | `["critical_cve", "install_script"]` | Conditions that fail the scan (exit 1) |
+| `warn_on` | `["recent_release", "maintainer_change"]` | Conditions that warn but allow through |
 
-Move `recent_release` from `warn_on` to `fail_on` to enforce the quarantine window strictly.
+Move `recent_release` to `fail_on` to strictly enforce the quarantine window.
 
 ## Supported ecosystems
 
-| Ecosystem | Lock file | Registry |
+| Ecosystem | Lock files | Registry |
 |-----------|-----------|----------|
-| PyPI | `requirements.txt` | pypi.org |
+| PyPI | `poetry.lock`, `Pipfile.lock`, `requirements.txt` | pypi.org |
 | npm | `package-lock.json` | registry.npmjs.org |
 
 CVE data is sourced from [OSV.dev](https://osv.dev) — Google's open vulnerability database.
 
 ## Contributing
-
-Gate is open source and built for the community. Contributions welcome.
 
 ```bash
 git clone https://github.com/Mhacker1020/gate
