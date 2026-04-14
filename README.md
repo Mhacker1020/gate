@@ -138,6 +138,11 @@ pip install -e ".[dev]"
 python -m pytest
 ```
 
+## Further reading
+
+- [Gate: A Supply Chain Security Scanner Built in Pure Python](https://hivesecurity.gitlab.io/blog/gate-supply-chain-scanner-python-tool/) — the story behind Gate and how it works
+- [npm Supply Chain Attack: axios-teamcp (2026)](https://hivesecurity.gitlab.io/blog/npm-supply-chain-attack-axios-teamcp-2026/) — a real-world case Gate is designed to catch
+
 ## License
 
 MIT

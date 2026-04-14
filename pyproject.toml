@@ -25,6 +25,7 @@ classifiers = [
 Homepage = "https://github.com/Mhacker1020/gate"
 Repository = "https://github.com/Mhacker1020/gate"
 Issues = "https://github.com/Mhacker1020/gate/issues"
+Blog = "https://hivesecurity.gitlab.io"
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov", "ruff", "mypy"]
